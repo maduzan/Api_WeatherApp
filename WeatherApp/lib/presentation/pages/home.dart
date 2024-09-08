@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/presentation/providers/pproviders.dart';
 import 'package:provider/provider.dart';
+import 'package:geolocator/geolocator.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -19,7 +20,7 @@ class _HomeState extends State<Home> {
       final weatherProvider =
           Provider.of<WeatherProvider>(context, listen: false);
       weatherProvider.fetchWeather(6.04, 80.22);
-      //fetchWeatherWithCurrentLocation(weatherProvider);
+      fetchWeatherWithCurrentLocation(weatherProvider);
     });
   }
 
@@ -40,7 +41,8 @@ class _HomeState extends State<Home> {
         children: [
           SizedBox(height: 90),
           Image.network(
-            weatherProvider.currentWeather?.icon ?? '',
+            weatherProvider.currentWeather?.icon ??
+                'https://yourdefaulticonurl.com/default.png',
             errorBuilder: (context, error, stackTrace) {
               return Icon(
                   Icons.cloud); // Show a default icon in case of an error
@@ -96,10 +98,36 @@ class _HomeState extends State<Home> {
       ),
     );
   }
-}
 
-          /*if (provider.currentWeather == null && provider.hourlyForecast.isEmpty) {
-            return Center(child: CircularProgressIndicator());
-          } else if (provider.currentWeather == null || provider.hourlyForecast.isEmpty) {
-            return Center(child: Text('Failed to load weather data'));
-          } else*/
+  void fetchWeatherWithCurrentLocation(WeatherProvider weatherProvider) async {
+    try {
+      await checkLocationSettings();
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+      await weatherProvider.fetchWeather(position.latitude, position.longitude);
+    } catch (e) {
+      print('Error getting location: $e');
+    }
+  }
+
+  Future<void> checkLocationSettings() async {
+    bool isLocationServiceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!isLocationServiceEnabled) {
+      // Prompt user to enable location services
+      print('Please enable location services.');
+      return;
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission != LocationPermission.whileInUse &&
+          permission != LocationPermission.always) {
+        // Handle the case where the user denies the location permission
+        print('Location permission is denied.');
+        return;
+      }
+    }
+  }
+}
